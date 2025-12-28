@@ -114,6 +114,24 @@ def decrypt_file(infile, outfile, key_bytes):
     with open(outfile, 'wb') as f:
         f.write(out)
 
+def hash_kuz(message: bytes) -> bytes:
+    padded = bytearray(message)
+    padded.append(0x80)
+    while len(padded) % 16 != 0:
+        padded.append(0x00)
+    
+    H = 0
+    
+    for i in range(0, len(padded), 16):
+        block = int.from_bytes(padded[i:i+16], 'big')
+        encrypted = encrypt_block(H, block)
+        H ^= encrypted
+        H &= MASK128
+    
+    H = encrypt_block(H, H)
+    
+    return H.to_bytes(16, 'big')
+
 if __name__ == "__main__":
     with open("plaintext.txt", "wb") as f:
         f.write(b"1234567890123456")
