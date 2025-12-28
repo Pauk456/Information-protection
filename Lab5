@@ -1,0 +1,67 @@
+from PIL import Image
+
+def string_to_binary(text):
+    return ''.join(f'{ord(char):08b}' for char in text)
+
+def binary_to_string(bit_str):
+    byte_chunks = [bit_str[i:i+8] for i in range(0, len(bit_str), 8)]
+    return ''.join(chr(int(chunk, 2)) for chunk in byte_chunks)
+
+def hide_text_in_image(src_path, secret, dest_path):
+    image = Image.open(src_path).convert('RGB')
+    termination_marker = '1111111111111110' 
+    payload = string_to_binary(secret) + termination_marker
+    bit_index = 0
+
+    pixel_data = list(image.getdata())
+    modified_pixels = []
+
+    for rgb in pixel_data:
+        if bit_index >= len(payload):
+            modified_pixels.append(rgb)
+            continue
+
+        red, green, blue = rgb
+
+        red = (red & 0xFE) | int(payload[bit_index])
+        bit_index += 1
+
+        if bit_index < len(payload):
+            green = (green & 0xFE) | int(payload[bit_index])
+            bit_index += 1
+
+        if bit_index < len(payload):
+            blue = (blue & 0xFE) | int(payload[bit_index])
+            bit_index += 1
+
+        modified_pixels.append((red, green, blue))
+
+    image.putdata(modified_pixels)
+    image.save(dest_path)
+    print("Сообщение успешно скрыто в изображении.")
+
+def reveal_text_from_image(image_path):
+    image = Image.open(image_path).convert('RGB')
+    bits = ''
+
+    for red, green, blue in image.getdata():
+        bits += str(red & 1)
+        bits += str(green & 1)
+        bits += str(blue & 1)
+
+    if '1111111111111110' in bits:
+        bits = bits.split('1111111111111110')[0]
+    else:
+        pass
+
+    return binary_to_string(bits)
+
+if __name__ == "__main__":
+    original = "input.png"
+    stego_image = "output.png"
+
+    secret_msg = input("Введите сообщение для скрытия: ")
+    hide_text_in_image(original, secret_msg, stego_image)
+
+    recovered = reveal_text_from_image(stego_image)
+    print("Восстановленное сообщение:", recovered)
